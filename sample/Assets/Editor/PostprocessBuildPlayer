@@ -1,0 +1,20 @@
+#!/bin/sh
+
+# 直接シェルから実行された
+# [ $# == 0 ] && echo "第１引数に Xcode のプロジェクトフォルダのパスを指定してください。"; exit
+
+proj_path="${1}/Unity-iPhone.xcodeproj"
+
+# iOS のビルドではない
+[ ! -e $proj_path ] && exit
+
+cwd=`dirname "${0}"`
+expr "${0}" : "/.*" > /dev/null || cwd=`(cd "${cwd}" && pwd)`
+env=`osascript ${cwd}/AutoBuild/select_env.scpt`
+
+`ruby ${cwd}/AutoBuild/import_sytem_libs.rb ${proj_path} ${env}`
+
+# echo "${proj_path}" > ~/Desktop/proj_path.txt
+# echo "${cwd}" > ~/Desktop/cwd.txt
+# echo "${env}" > ~/Desktop/env.txt
+

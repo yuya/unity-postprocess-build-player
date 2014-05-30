@@ -3,19 +3,21 @@
 # 直接シェルから実行された
 # [ $# == 0 ] && echo "第１引数に Xcode のプロジェクトフォルダのパスを指定してください。"; exit
 
-proj_path="${1}/Unity-iPhone.xcodeproj"
+# proj_path="${1}/Unity-iPhone.xcodeproj"
+build_path="${1}/"
+echo "${build_path}" > ~/Desktop/build_path.txt
 unity_path=`ps ax | grep Unity.app | grep -v grep | sed -e "s/.*\(\/Applications\/[0-9a-zA-Z\ \.]*\/Unity.app\/Contents\).*$/\1/"`
-if [ ! -n "${unity_path}" ]; then unity_path="/Applications/Unity/Unity.app/Contents"; fi
+[ ! -n "${unity_path}" ] && unity_path="/Applications/Unity/Unity.app/Contents"
 unity_ver=`grep -E "Unity\ version\ [0-9|\.]+\w+<\/\w+>$" ${unity_path}/Info.plist | sed -e "s/[^0-9]*\([0-9\.]*\).*$/\1/"`
 
 # iOS のビルドではない
-[ ! -e $proj_path ] && exit
+[ ! -e "${build_path}Unity-iPhone.xcodeproj" ] && exit
 
 cwd=`dirname "${0}"`
 expr "${0}" : "/.*" > /dev/null || cwd=`(cd "${cwd}" && pwd)`
 env=`osascript ${cwd}/AutoBuild/select_env.scpt`
 
-`ruby ${cwd}/AutoBuild/import_sytem_libs.rb ${proj_path} ${env} ${unity_ver}`
+`ruby ${cwd}/AutoBuild/import_sytem_libs.rb ${build_path} ${env} ${unity_ver}`
 
 # echo "${proj_path}" > ~/Desktop/proj_path.txt
 # echo "${cwd}" > ~/Desktop/cwd.txt

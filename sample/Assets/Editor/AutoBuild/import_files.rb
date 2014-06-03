@@ -104,7 +104,7 @@ external_files = {
   ]
 }
 
-@build_path = ARGV[0] ? ARGV[0] : "/Users/yuya/Workspace/unity-postprocess-build-player/tmp/iOS/"
+@build_path = ARGV[0] ? ARGV[0] : "/Users/yuya/Workspace/quikin-unity/Dist/3.2.6_dev/"
 build_env   = ARGV[1] ? ARGV[1] : "Product"
 unity_ver   = ARGV[2] ? ARGV[2].to_f : "2.3.2"
 proj_path   = "#{@build_path}Unity-iPhone.xcodeproj"
@@ -114,7 +114,7 @@ proj_path   = "#{@build_path}Unity-iPhone.xcodeproj"
 @build_phase     = @target.frameworks_build_phase
 @compile_phase   = @target.source_build_phase
 @resources_phase = @target.resources_build_phase
-@resources_path  = "/Users/yuya/Desktop/ios_tmp_files/"
+@resources_path  = "/Users/yuya/Desktop/ios_dev/"
 @groups         = {
   "root"       => @project.root_object.main_group,
   "classes"    => @project.groups.find { |group| group.path == "Classes"   },
@@ -171,9 +171,7 @@ def import_external_files(file_paths, group_name)
     path_base = base_directory_path + directory_path + file_name
     path_from = @resources_path + path_base
     path_to   = @build_path + path_base
-    has_file  = File.exist?(path_to)
-
-    # puts has_ref
+    has_file  = @groups[group_name].find_file_by_path(directory_path + file_name)
 
     FileUtils.rm_rf(path_to)
     FileUtils.cp_r(path_from, path_to)
@@ -182,9 +180,9 @@ def import_external_files(file_paths, group_name)
       ref      = @groups[group_name].new_file(path_to)
       ref.name = file_name
 
-      if reqire_build_ref && !@build_phase.files_references.find { |file| file.name =~ /#{file_name}$/ }
+      if reqire_build_ref
         @build_phase.add_file_reference(ref)
-      elsif reqire_resources_ref && !@resources_phase.files_references.find { |file| file.name =~ /#{file_name}$/ }
+      elsif reqire_resources_ref
         @resources_phase.add_file_reference(ref)
       end
     end

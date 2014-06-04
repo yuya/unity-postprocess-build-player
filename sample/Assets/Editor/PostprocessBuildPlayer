@@ -10,7 +10,7 @@ fi
 
 build_path="${1}/"
 unity_path=`ps ax | grep Unity.app | grep -v grep | sed -e "s/.*\(\/Applications\/[0-9a-zA-Z\ \.]*\/Unity.app\/Contents\).*$/\1/"`
-[ ! -n "${unity_path}" ] && unity_path="/Applications/Unity/Unity.app/Contents"
+[ -z "${unity_path}" ] && unity_path="/Applications/Unity/Unity.app/Contents"
 unity_ver=`grep -E "Unity\ version\ [0-9|\.]+\w+<\/\w+>$" "${unity_path}/Info.plist" | sed -e "s/[^0-9]*\([0-9\.]*\).*$/\1/"`
 
 cwd=`dirname "${0}"`

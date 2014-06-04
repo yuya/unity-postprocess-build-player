@@ -7,7 +7,8 @@ require "xcodeproj"
 
 system_files = {
   "frameworks" => [
-    "AdSupport",
+    "-AdSupport",
+    "-UIKit",
     "AssetsLibrary",
     "CFNetwork",
     "CoreData",
@@ -18,11 +19,7 @@ system_files = {
   ],
   "libraries" => [
     "sqlite3"
-  ],
-  "settings" => {
-    "AdSupport" => { "ATTRIBUTES" => ["Weak"] },
-    "UIKit"     => { "ATTRIBUTES" => ["Weak"] }
-  }
+  ]
 }
 
 external_files = {
@@ -141,12 +138,36 @@ def set_framework_search_paths(paths = "\"$(SRCROOT)\"")
   end
 end
 
-def import_system_frameworks(frameworks)
-  @target.add_system_frameworks(frameworks)
+def find_file_reference(file_name)
+  reference = @build_phase.files_references.find do |ref|
+    (ref.is_a?(Xcodeproj::Project::Object::PBXFileReference)) && (ref.name =~ /^#{file_name}/)
+  end
+
+  return reference
 end
 
-def import_system_libraries(libraries)
-  @target.add_system_libraries(libraries)
+def import_system_files(files, add_type)
+  files.each do |file|
+    is_attrs_optional = file =~ /^\-/ ? true : false
+    is_attrs_required = file =~ /^\+/ ? true : false
+    file_name         = is_attrs_optional || is_attrs_required ? file.gsub(/^[\-\+]/, "") : file 
+
+    unless find_file_reference(file_name)
+      case add_type
+      when "frameworks"
+        @target.add_system_framework(file_name)
+      when "libraries"
+        @target.add_system_library(file_name)
+      end
+    end
+
+    if is_attrs_optional || is_attrs_required
+      file_ref = find_file_reference(file_name)
+      settings = { "ATTRIBUTES" => is_attrs_optional ? ["Weak"] : [] }
+
+      file_ref.build_files.each { |itr| itr.settings = settings }
+    end
+  end
 end
 
 def import_external_files(file_paths, group_name)
@@ -156,15 +177,14 @@ def import_external_files(file_paths, group_name)
       next
     end
 
-    splited_file_path    = file_path.split(/\//)
-    file_name            = splited_file_path.last
-    directory_path       = splited_file_path.size > 1 ? splited_file_path[0...splited_file_path.size - 1].join("/") + "/" : ""
-    base_directory_path  = group_name == "root" ? "" : group_name.capitalize + "/"
-    regexp_build_ref_ext = /\.(a|dylib|framework)$/
-    reqire_build_ref     = file_name =~ regexp_build_ref_ext ? true : false
-    reqire_resources_ref = file_name =~ /^\@/                ? true : false 
+    splited_file_path       = file_path.split(/\//)
+    file_name               = splited_file_path.last
+    directory_path          = splited_file_path.size > 1 ? splited_file_path[0...splited_file_path.size - 1].join("/") + "/" : ""
+    base_directory_path     = group_name == "root" ? "" : group_name.capitalize + "/"
+    is_reqire_build_ref     = file_name =~ /\.(a|dylib|framework)$/ ? true : false
+    is_reqire_resources_ref = file_name =~ /^\@/                    ? true : false 
 
-    if reqire_resources_ref
+    if is_reqire_resources_ref
       file_name = file_name.gsub(/^\@/, "")
     end
 
@@ -180,9 +200,9 @@ def import_external_files(file_paths, group_name)
       ref      = @groups[group_name].new_file(path_to)
       ref.name = file_name
 
-      if reqire_build_ref
+      if is_reqire_build_ref
         @build_phase.add_file_reference(ref)
-      elsif reqire_resources_ref
+      elsif is_reqire_resources_ref
         @resources_phase.add_file_reference(ref)
       end
     end
@@ -226,24 +246,12 @@ def import_external_files_with_option(hash, group_name)
   end
 end
 
-def set_system_settings(target_list)
-  file_ref = Xcodeproj::Project::Object::PBXFileReference
-
-  target_list.each do |target, settings|
-    matched = @build_phase.files_references.find do |file|
-      (file.is_a?(file_ref)) && (file.name =~ /^#{target}/)
-    end
-
-    matched.build_files[0].settings = settings
-  end
-end
-
 set_frameworks_group_path()
 set_framework_search_paths("\"$(SRCROOT)\"")
 
-import_system_frameworks(system_files["frameworks"])
-import_system_libraries(system_files["libraries"])
-set_system_settings(system_files["settings"])
+system_files.each_key do |itr|
+  import_system_files(system_files[itr], itr)
+end
 
 external_files.each_key do |itr|
   import_external_files(external_files[itr], itr)

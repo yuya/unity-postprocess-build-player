@@ -1,24 +1,19 @@
 "system_files": 
   "frameworks": [
-    "AdSupport"
+    "-AdSupport"
+    "-UIKit"
     "AssetsLibrary"
     "CFNetwork"
     "CoreData"
     "CoreGraphics"
     "CoreTelephony"
-    "Security"
     "MessageUI"
+    "Security"
   ]
 
   "libraries": [
     "sqlite3"
   ]
-
-  "settings":
-    "AdSupport":
-      "ATTRIBUTES": ["Weak"]
-    "UIKit":
-      "ATTRIBUTES": ["Weak"]
 
 "external_files":
   "root": [
@@ -78,22 +73,17 @@
     "NoahUnityPlugin.h"
     "NoahUtil.h"
     "SmacTracking.h"
-    {
-      "Libraries/json-framework-3.2.0/": [
-        "SBJson.xcodeproj"
-      ]
-    }
-    {
-      "Libraries/SVProgressHUD/": [
-        "SVProgressHUD.h"
-        {
-          "SVProgressHUD.m": 
-            "reference": "COMPILE_PHASE"
-            "settings": { "COMPILER_FLAGS": "-fobjc-arc" }
-        }
-        {
-          "SVProgressHUD.bundle": { "reference": "RESOURCES_PHASE" }
-        }
-      ]
-    }
+
+    "json-framework-3.2.0/": [
+      "SBJson.xcodeproj"
+    ]
+
+    "SVProgressHUD/": [
+      "@SVProgressHUD.bundle"
+      "SVProgressHUD.h"
+      "SVProgressHUD.m": 
+        "reference": "COMPILE_PHASE"
+        "settings":
+          "COMPILER_FLAGS": "-fobjc-arc"
+    ]
   ]

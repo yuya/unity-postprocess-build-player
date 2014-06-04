@@ -1,22 +1,29 @@
 #!/bin/sh
 
 # 直接シェルから実行された
-# [ $# == 0 ] && echo "第１引数に Xcode のプロジェクトフォルダのパスを指定してください。"; exit
+if [ ! -n "${1}" ]; then
+  echo "引数に Unity-iPhone.xcodeproj があるディレクトリパスを指定してください。"
+  exit
+fi
 
 build_path="${1}/"
-unity_path=`ps ax | grep Unity.app | grep -v grep | sed -e "s/.*\(\/Applications\/[0-9a-zA-Z\ \.]*\/Unity.app\/Contents\).*$/\1/"`
-[ ! -n "${unity_path}" ] && unity_path="/Applications/Unity/Unity.app/Contents"
-unity_ver=`grep -E "Unity\ version\ [0-9|\.]+\w+<\/\w+>$" ${unity_path}/Info.plist | sed -e "s/[^0-9]*\([0-9\.]*\).*$/\1/"`
 
 # iOS のビルドではない
 [ ! -e "${build_path}Unity-iPhone.xcodeproj" ] && exit
-if ! type xcodeproj > /dev/null 2>&1; then echo "Please install xcodeproj"; exit; fi
+
+unity_path=`ps ax | grep Unity.app | grep -v grep | sed -e "s/.*\(\/Applications\/[0-9a-zA-Z\ \.]*\/Unity.app\/Contents\).*$/\1/"`
+[ ! -n "${unity_path}" ] && unity_path="/Applications/Unity/Unity.app/Contents"
+unity_ver=`grep -E "Unity\ version\ [0-9|\.]+\w+<\/\w+>$" "${unity_path}/Info.plist" | sed -e "s/[^0-9]*\([0-9\.]*\).*$/\1/"`
 
 cwd=`dirname "${0}"`
 expr "${0}" : "/.*" > /dev/null || cwd=`(cd "${cwd}" && pwd)`
-env=`osascript ${cwd}/AutoBuild/select_env.scpt`
 
-# JSON file path (.json|.coffee)
+if ! type xcodeproj > /dev/null 2>&1; then
+  `osascript ${cwd}/AutoBuild/msg_dialog.scpt "Please install xcodeproj"`
+  exit
+fi
+
+env=`osascript ${cwd}/AutoBuild/select_env.scpt`
 JSON_PATH="${cwd}/AutoBuild/file_list.json"
 
 `ruby ${cwd}/AutoBuild/import_files.rb ${build_path} ${env} ${unity_ver} ${JSON_PATH}`

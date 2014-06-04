@@ -1,16 +1,14 @@
 #!/bin/sh
 
-# 直接シェルから実行された
-if [ ! -n "${1}" ]; then
+# 直接シェルから引数なしで実行された
+if [ -z "${1}" ]; then
   echo "引数に Unity-iPhone.xcodeproj があるディレクトリパスを指定してください。"
   exit
 fi
+# iOS のビルドではない
+[ -n "${2}" -a "${2}" != "iPhone" ] && exit
 
 build_path="${1}/"
-
-# iOS のビルドではない
-[ ! -e "${build_path}Unity-iPhone.xcodeproj" ] && exit
-
 unity_path=`ps ax | grep Unity.app | grep -v grep | sed -e "s/.*\(\/Applications\/[0-9a-zA-Z\ \.]*\/Unity.app\/Contents\).*$/\1/"`
 [ ! -n "${unity_path}" ] && unity_path="/Applications/Unity/Unity.app/Contents"
 unity_ver=`grep -E "Unity\ version\ [0-9|\.]+\w+<\/\w+>$" "${unity_path}/Info.plist" | sed -e "s/[^0-9]*\([0-9\.]*\).*$/\1/"`

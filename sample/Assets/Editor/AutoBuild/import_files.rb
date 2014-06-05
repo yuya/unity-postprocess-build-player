@@ -78,22 +78,20 @@ external_files = {
     "NoahUtil.h",
     "SmacTracking.h",
     {
-      "Libraries/json-framework-3.2.0/" => [
+      "json-framework-3.2.0/" => [
         "SBJson.xcodeproj"
       ]
     },
     {
-      "Libraries/SVProgressHUD/" => [
+      "SVProgressHUD/" => [
+        "@SVProgressHUD.bundle",
         "SVProgressHUD.h",
         {
           "SVProgressHUD.m" => {
             "reference" => "COMPILE_PHASE",
-            "settings"  => { "COMPILER_FLAGS" => "-fobjc-arc" }
-          }
-        },
-        {
-          "SVProgressHUD.bundle" => {
-            "reference" => "RESOURCES_PHASE"
+            "settings"  => {
+              "COMPILER_FLAGS" => "-fobjc-arc"
+            }
           }
         }
       ]
@@ -170,78 +168,117 @@ def import_system_files(files, add_type)
   end
 end
 
-def import_external_files(file_paths, group_name)
-  file_paths.each do |file_path|
-    if file_path.is_a?(Hash)
-      import_external_files_with_option(file_path, group_name)
-      next
-    end
+def import_external_file(file_path, group_name)
+  splited_file_path       = file_path.split(/\//)
+  file_name               = splited_file_path.last
+  directory_path          = splited_file_path.size > 1 ? splited_file_path[0...splited_file_path.size - 1].join("/") + "/" : ""
+  base_directory_path     = group_name == "root" ? "" : group_name.capitalize + "/"
+  is_reqire_build_ref     = file_name =~ /\.(a|dylib|framework)$/ ? true : false
+  is_reqire_resources_ref = file_name =~ /^\@/                    ? true : false 
+  is_attrs_optional       = file_name =~ /^\-/                    ? true : false
+  is_attrs_required       = file_name =~ /^\+/                    ? true : false
 
-    splited_file_path       = file_path.split(/\//)
-    file_name               = splited_file_path.last
-    directory_path          = splited_file_path.size > 1 ? splited_file_path[0...splited_file_path.size - 1].join("/") + "/" : ""
-    base_directory_path     = group_name == "root" ? "" : group_name.capitalize + "/"
-    is_reqire_build_ref     = file_name =~ /\.(a|dylib|framework)$/ ? true : false
-    is_reqire_resources_ref = file_name =~ /^\@/                    ? true : false 
-
-    if is_reqire_resources_ref
-      file_name = file_name.gsub(/^\@/, "")
-    end
-
-    path_base = base_directory_path + directory_path + file_name
-    path_from = @resources_path + path_base
-    path_to   = @build_path + path_base
-    has_file  = @groups[group_name].find_file_by_path(directory_path + file_name)
-
-    FileUtils.rm_rf(path_to)
-    FileUtils.cp_r(path_from, path_to)
-
-    unless has_file
-      ref      = @groups[group_name].new_file(path_to)
-      ref.name = file_name
-
-      if is_reqire_build_ref
-        @build_phase.add_file_reference(ref)
-      elsif is_reqire_resources_ref
-        @resources_phase.add_file_reference(ref)
-      end
-    end
-
+  if is_reqire_resources_ref || is_attrs_optional || is_attrs_required
+    file_name = file_name.gsub(/^[\@\-\+]/, "")
   end
-end
 
-def import_external_files_with_option(hash, group_name)
-  folder_name = hash.keys.find { |key| key =~ /\/$/ }
-  path_from   = @resources_path + folder_name
-  path_to     = @build_path + folder_name
-  has_file    = File.exist?(folder_name)
-  file_names  = hash.values.first
+  path_base = base_directory_path + directory_path + file_name
+  path_from = @resources_path + path_base
+  path_to   = @build_path + path_base
+  has_file  = @groups[group_name].find_file_by_path(directory_path + file_name)
 
   FileUtils.rm_rf(path_to)
   FileUtils.cp_r(path_from, path_to)
 
-  file_names.each do |file_name|
-    if has_file
+  unless has_file
+    ref      = @groups[group_name].new_file(path_to)
+    ref.name = file_name
+
+    if is_reqire_build_ref
+      @build_phase.add_file_reference(ref)
+    elsif is_reqire_resources_ref
+      @resources_phase.add_file_reference(ref)
+    elsif is_attrs_optional || is_attrs_required
+      file_ref = find_file_reference(file_name)
+      settings = { "ATTRIBUTES" => is_attrs_optional ? ["Weak"] : [] }
+
+      file_ref.build_files.each { |itr| itr.settings = settings }
+    end
+  end
+end
+
+def import_external_files(file_paths, group_name)
+  file_paths.each do |file_path|
+    if file_path.is_a?(Hash)
+      import_external_file_with_option(file_path, group_name)
       next
     end
 
-    if file_name.is_a?(String)
-      @groups[group_name].new_file("#{path_to}#{file_name}")
-    elsif file_name.is_a?(Hash)
-      file      = file_name.keys.first
-      value     = file_name.values.first
-      reference = case value["reference"]
-        when "COMPILE_PHASE"   then @compile_phase
-        when "RESOURCES_PHASE" then @resources_phase
-        else nil
-      end
-      settings = value["settings"]    
-      ref      = @groups[group_name].new_file("#{path_to}#{file}")
-      file_ref = reference.add_file_reference(ref)
+    import_external_file(file_path, group_name)
+  end
+end
 
-      if settings && settings.is_a?(Hash)
-        file_ref.settings = settings
+def import_external_file_with_option(file_path, group_name)
+  file_name    = file_path.keys.first
+  has_file     = @groups[group_name].find_file_by_path(file_name)
+  is_directory = file_name =~ /\/$/ ? true : false
+
+  if is_directory
+    directory_path = file_name
+  end
+
+  def import_with_option(file_path, group_name)
+    file_name = file_path.keys.first
+    options   = file_path.values.first
+    settings  = options["settings"]
+    reference = case options["reference"]
+      when "BUILD_PHASE"     then @build_phase
+      when "COMPILE_PHASE"   then @compile_phase
+      when "RESOURCES_PHASE" then @resources_phase
+    end
+
+    base_directory_path = group_name == "root" ? "" : "#{group_name.capitalize}/"
+    path_base           = base_directory_path + file_name
+    path_from           = @resources_path + path_base
+    path_to             = @build_path + path_base
+
+    FileUtils.rm_rf(path_to)
+    FileUtils.cp_r(path_from, path_to)
+
+    file      = @groups[group_name].new_file(path_to)
+    file.name = file_name 
+    file_ref  = reference.add_file_reference(file)
+
+    if settings && settings.is_a?(Hash)
+      file_ref.settings = settings
+    end
+  end
+
+  unless has_file
+    if is_directory
+      file_paths          = file_path.values.first
+      base_directory_path = group_name == "root" ? "" : "#{group_name.capitalize}/"
+      path_base           = base_directory_path + directory_path
+      path_from           = @resources_path + path_base
+      path_to             = @build_path + path_base
+
+      unless File.exist?(path_to)
+        FileUtils.cp_r(path_from, path_to)        
       end
+
+      file_paths.each do |file_path|
+        if file_path.is_a?(String)
+          import_external_file(directory_path + file_path, group_name)
+        elsif file_path.is_a?(Hash)
+          hash = {
+            "#{directory_path + file_path.keys.first}" => file_path.values.first
+          }
+
+          import_with_option(hash, group_name)
+        end
+      end
+    else
+      import_with_option(file_path, group_name)
     end
   end
 end
